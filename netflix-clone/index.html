@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>cini.net</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://alcdn.msauth.net/browser/2.34.0/js/msal-browser.min.js" crossorigin="anonymous"></script>
+    <style>
+        /* Login Modal Styles */
+        .login-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .login-modal.active {
+            display: flex;
+        }
+        .login-container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 400px;
+            position: relative;
+        }
+        .login-container h2 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .login-form, .profile-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .login-form label, .profile-form label {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .login-form input, .profile-form input, .profile-form textarea {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .login-form input:focus, .profile-form input:focus, .profile-form textarea:focus {
+            outline: none;
+            border-color: #e50914;
+            box-shadow: 0 0 5px rgba(229, 9, 20, 0.3);
+        }
+        .login-form button, .profile-form button {
+            padding: 12px;
+            background-color: #e50914;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .login-form button:hover, .profile-form button:hover {
+            background-color: #c20812;
+        }
+        .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: #333;
+            font-size: 30px;
+            cursor: pointer;
+        }
+        .login-toggle-btn {
+            padding: 8px 15px;
+            background-color: #e50914;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .login-toggle-btn:hover {
+            background-color: #c20812;
+        }
+        /* Profile Modal Styles */
+        .profile-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .profile-modal.active {
+            display: flex;
+        }
+        .profile-container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 500px;
+            position: relative;
+        }
+        .profile-container h2 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .profile-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .profile-photo {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin: 0 auto 15px;
+            border: 3px solid #e50914;
+            display: block;
+            background: #f0f0f0;
+        }
+        .photo-upload-label {
+            display: inline-block;
+            padding: 8px 20px;
+            background-color: #e50914;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        .photo-upload-label:hover {
+            background-color: #c20812;
+        }
+        #profilePhotoInput {
+            display: none;
+        }
+        .profile-info {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        .profile-info p {
+            margin: 8px 0;
+            color: #333;
+        }
+        .profile-info strong {
+            color: #e50914;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+        .btn-edit, .btn-delete, .btn-signout {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .btn-edit {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .btn-edit:hover {
+            background-color: #45a049;
+        }
+        .btn-delete {
+            background-color: #ff9800;
+            color: white;
+        }
+        .btn-delete:hover {
+            background-color: #e68900;
+        }
+        .btn-signout {
+            background-color: #f44336;
+            color: white;
+        }
+        .btn-signout:hover {
+            background-color: #da190b;
+        }
+        .profile-section {
+            display: none;
+        }
+        .profile-section.active {
+            display: block;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <a href="index.html" aria-label="Home"><img src="netflix-logo.png" alt="Netflix Logo" class="logo"></a>
+        <nav class="nav">
+            <a href="#">Home</a>
+            <a href="#">TV Shows</a>
+            <a href="#">Movies</a>
+            <a href="#">New & Popular</a>
+        </nav>
+        <div class="user-actions">
+            <a href="#" class="search-icon">🔍</a>
+            <button class="login-toggle-btn" id="authBtn" onclick="openLoginModal()">Sign In</button>
+            <button class="login-toggle-btn" id="signupBtn" onclick="openSignupModal()">Sign Up</button>
+            <button class="login-toggle-btn hidden" id="profileBtn" onclick="openProfileModal()">👤 Profile</button>
+        </div>
+    </header>
+
+    <!-- Login Modal -->
+    <div class="login-modal" id="loginModal">
+        <div class="login-container">
+            <button class="close-btn" onclick="closeLoginModal()">&times;</button>
+            <h2>Sign In</h2>
+            <form class="login-form" id="loginForm" action="php/login.php" method="post" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="email">Email:</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                
+                <button type="submit">Sign In</button>
+                <div style="display:flex; gap:8px; margin-top:8px; align-items:center;">
+                    <button type="button" style="flex:1; background:#4285F4;" onclick="signInWithGoogle()">Continue with Google</button>
+                    <button type="button" style="flex:1; background:#2F2F2F;" onclick="signInWithMicrosoft()">Continue with Microsoft</button>
+                </div>
+                <p style="text-align:center; margin-top:10px;">Don't have an account? <a href="#" onclick="openSignupModal(); return false;">Sign up</a></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- Signup Modal -->
+    <div class="login-modal" id="signupModal">
+        <div class="login-container">
+            <button class="close-btn" onclick="closeSignupModal()">&times;</button>
+            <h2>Create Account</h2>
+            <form class="login-form" id="signupForm" action="php/signup.php" method="post" onsubmit="handleSignup(event)">
+                <div class="form-group">
+                    <label for="signupName">Full Name:</label>
+                    <input type="text" id="signupName" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="signupEmail">Email:</label>
+                    <input type="email" id="signupEmail" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="signupPassword">Password:</label>
+                    <input type="password" id="signupPassword" name="password" required>
+                </div>
+                <button type="submit">Sign Up</button>
+                <div style="display:flex; gap:8px; margin-top:8px; align-items:center;">
+                    <button type="button" style="flex:1; background:#4285F4;" onclick="signInWithGoogle()">Continue with Google</button>
+                    <button type="button" style="flex:1; background:#2F2F2F;" onclick="signInWithMicrosoft()">Continue with Microsoft</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Profile Modal -->
+    <div class="profile-modal" id="profileModal">
+        <div class="profile-container">
+            <button class="close-btn" onclick="closeProfileModal()">&times;</button>
+            
+            <!-- View Profile Section -->
+            <div class="profile-section active" id="viewProfileSection">
+                <h2>My Profile</h2>
+                <div class="profile-header">
+                    <img id="displayProfilePhoto" class="profile-photo" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23ddd'/%3E%3Ccircle cx='50' cy='35' r='15' fill='%23999'/%3E%3Cpath d='M20 70 Q20 55 50 55 Q80 55 80 70 L80 100 L20 100 Z' fill='%23999'/%3E%3C/svg%3E" alt="Profile Photo">
+                </div>
+                <div class="profile-info">
+                    <p><strong>Name:</strong> <span id="displayName">User Name</span></p>
+                    <p><strong>Email:</strong> <span id="displayEmail">user@example.com</span></p>
+                    <p><strong>Bio:</strong> <span id="displayBio">No bio added</span></p>
+                </div>
+                <div class="button-group">
+                    <button class="btn-edit" onclick="editProfile()">Edit Profile</button>
+                    <button class="btn-signout" onclick="signOut()">Sign Out</button>
+                </div>
+            </div>
+
+            <!-- Edit Profile Section -->
+            <div class="profile-section" id="editProfileSection">
+                <h2>Edit Profile</h2>
+                <form class="profile-form" onsubmit="saveProfile(event)">
+                    <div class="form-group">
+                        <label>Profile Photo:</label>
+                        <label class="photo-upload-label">
+                            📸 Upload Photo
+                            <input type="file" id="profilePhotoInput" accept="image/*" onchange="handlePhotoUpload(event)">
+                        </label>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editName">Full Name:</label>
+                        <input type="text" id="editName" name="name" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editEmail">Email:</label>
+                        <input type="email" id="editEmail" name="email" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editBio">Bio (Optional):</label>
+                        <textarea id="editBio" name="bio" rows="3" placeholder="Tell us about yourself..."></textarea>
+                    </div>
+                    
+                    <button type="submit">Save Changes</button>
+                    <button type="button" onclick="cancelEdit()" style="background-color: #999; margin-top: 10px;">Cancel</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <section class="hero-banner">
+        <div class="hero-content">
+            <h1>The One Army</h1>
+            <p> he “One Man Army” trope has become a staple in action cinema, captivating audiences with its portrayal of a lone hero who takes on insurmountable odds. 
+                This archetype often embodies themes of resilience, justice, and the triumph of the individual spirit against overwhelming adversity. The trope resonates deeply with viewers, 
+                as it taps into the fantasy of personal empowerment and the belief that one person can make a significant difference in the world.</p>
+            <div class="hero-buttons">
+                <button class="play-button" onclick="window.open('https://youtu.be/iDW_W6993v4?si=s3IPbPYjA8Ry5JVJ', '_blank')">▶ Play</button>
+                <button class="info-button" onclick="window.open('https://www.imdb.com/title/tt36669529/', '_blank')">ⓘ More Info</button>
+            </div>
+        </div>
+    </section>
+
+    <main class="content-rows">
+        <section class="row">
+            <h2>Trending Now</h2>
+            <div class="posters-container" id="trending-now">
+            </div>
+        </section>
+
+        <section class="row">
+            <h2>Critically Acclaimed</h2>
+            <div class="posters-container" id="critically-acclaimed">
+            </div>
+        </section>
+    </main>
+
+    <script src="script.js"></script>
+    <script>
+        let currentUser = null;
+
+        function openLoginModal() {
+            document.getElementById('loginModal').classList.add('active');
+        }
+
+        function closeLoginModal() {
+            document.getElementById('loginModal').classList.remove('active');
+        }
+
+        function openProfileModal() {
+            if (currentUser) {
+                displayProfile();
+                document.getElementById('profileModal').classList.add('active');
+            }
+        }
+
+        function closeProfileModal() {
+            document.getElementById('profileModal').classList.remove('active');
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            const form = document.getElementById('loginForm');
+            const formData = new FormData(form);
+
+            try {
+                const res = await fetch(form.action, {
+                    method: form.method.toUpperCase(),
+                    body: formData,
+                    credentials: 'include'
+                });
+
+                if (!res.ok) throw new Error('Network response was not ok');
+
+                const data = await res.json();
+
+                if (data && data.success) {
+                    // Set client-side user state
+                    currentUser = data.user || {
+                        name: data.name || 'User',
+                        email: formData.get('email') || '',
+                        bio: data.bio || ''
+                    };
+
+                    // Update header UI
+                    document.getElementById('authBtn').classList.add('hidden');
+                    document.getElementById('profileBtn').classList.remove('hidden');
+
+                    // Close login modal and show home interface
+                    closeLoginModal();
+                    goToHome();
+                } else {
+                    alert(data.message || 'Login failed. Check credentials.');
+                }
+            } catch (err) {
+                console.error('Login error:', err);
+                // Generic error message (avoid exposing network/CORS hints in UI)
+                alert('Login failed. Please try again.');
+            }
+        }
+
+        function displayProfile() {
+            document.getElementById('viewProfileSection').classList.add('active');
+            document.getElementById('editProfileSection').classList.remove('active');
+            
+            if (currentUser) {
+                document.getElementById('displayName').textContent = currentUser.name;
+                document.getElementById('displayEmail').textContent = currentUser.email;
+                document.getElementById('displayBio').textContent = currentUser.bio || 'No bio added';
+                
+                if (currentUser.photo) {
+                    document.getElementById('displayProfilePhoto').src = currentUser.photo;
+                }
+            }
+        }
+
+        function editProfile() {
+            document.getElementById('viewProfileSection').classList.remove('active');
+            document.getElementById('editProfileSection').classList.add('active');
+            
+            if (currentUser) {
+                document.getElementById('editName').value = currentUser.name;
+                document.getElementById('editEmail').value = currentUser.email;
+                document.getElementById('editBio').value = currentUser.bio;
+            }
+        }
+
+        function handlePhotoUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    currentUser.photo = e.target.result;
+                    document.getElementById('displayProfilePhoto').src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function saveProfile(event) {
+            event.preventDefault();
+            
+            currentUser.name = document.getElementById('editName').value;
+            currentUser.email = document.getElementById('editEmail').value;
+            currentUser.bio = document.getElementById('editBio').value;
+            
+            displayProfile();
+            alert('Profile updated successfully!');
+        }
+
+        function cancelEdit() {
+            displayProfile();
+        }
+
+        function signOut() {
+            currentUser = null;
+            closeProfileModal();
+            
+            // Update header buttons
+            document.getElementById('authBtn').classList.remove('hidden');
+            document.getElementById('profileBtn').classList.add('hidden');
+            
+            alert('Signed out successfully!');
+            openLoginModal();
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const loginModal = document.getElementById('loginModal');
+            const profileModal = document.getElementById('profileModal');
+            
+            if (event.target == loginModal) {
+                closeLoginModal();
+            }
+            if (event.target == profileModal) {
+                closeProfileModal();
+            }
+        }
+    </script>
+    <script>
+        // Signup modal handlers
+        function openSignupModal() {
+            document.getElementById('signupModal').classList.add('active');
+        }
+
+        function closeSignupModal() {
+            document.getElementById('signupModal').classList.remove('active');
+        }
+
+        async function handleSignup(event) {
+            event.preventDefault();
+            const form = document.getElementById('signupForm');
+            const formData = new FormData(form);
+
+            try {
+                const res = await fetch(form.action, {
+                    method: form.method.toUpperCase(),
+                    body: formData,
+                    credentials: 'include'
+                });
+
+                if (!res.ok) throw new Error('Network response was not ok');
+
+                const data = await res.json();
+                if (data && data.success) {
+                    currentUser = data.user || { name: formData.get('name'), email: formData.get('email'), bio: '' };
+                    // persist login state for this session (safer than localStorage)
+                    try { sessionStorage.setItem('loggedIn', '1'); sessionStorage.setItem('currentUser', JSON.stringify(currentUser)); } catch(e) {}
+
+                    document.getElementById('authBtn').classList.add('hidden');
+                    document.getElementById('profileBtn').classList.remove('hidden');
+                    closeSignupModal();
+                    goToHome();
+                } else {
+                    alert(data.message || 'Signup failed.');
+                }
+            } catch (err) {
+                console.error('Signup error:', err);
+                // Generic error message (avoid exposing network/CORS hints in UI)
+                alert('Signup failed. Please try again.');
+            }
+        }
+
+        // Social sign-in: open a popup to server endpoint that handles OAuth and posts back a message
+        function signInWithGoogle() {
+            const popup = window.open('php/google-login.php', 'googleLogin', 'width=600,height=700');
+            if (!popup) { alert('Popup blocked. Please allow popups for this site.'); return; }
+            const messageHandler = (event) => {
+                // For security, you should check event.origin in a production app
+                const data = event.data;
+                if (data && data.provider === 'google') {
+                    window.removeEventListener('message', messageHandler);
+                    if (data.success) {
+                        currentUser = data.user;
+                        // set server-side session for demo via set-session.php
+                        try {
+                            fetch('php/set-session.php', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ user: currentUser }),
+                                credentials: 'include'
+                            }).then(r => {
+                                if (!r.ok) console.warn('Failed to set server session');
+                                try { sessionStorage.setItem('loggedIn', '1'); sessionStorage.setItem('currentUser', JSON.stringify(currentUser)); } catch(e) {}
+                                document.getElementById('authBtn').classList.add('hidden');
+                                document.getElementById('profileBtn').classList.remove('hidden');
+                                closeLoginModal(); closeSignupModal();
+                                goToHome();
+                            }).catch(err => {
+                                console.error('Set session error', err);
+                                alert('Google sign-in completed locally but failed to create server session.');
+                                try { sessionStorage.setItem('loggedIn', '1'); sessionStorage.setItem('currentUser', JSON.stringify(currentUser)); } catch(e) {}
+                                document.getElementById('authBtn').classList.add('hidden');
+                                document.getElementById('profileBtn').classList.remove('hidden');
+                                closeLoginModal(); closeSignupModal();
+                                goToHome();
+                            });
+                        } catch (e) {
+                            console.error(e);
+                            alert('Google sign-in completed locally but could not contact server to set session.');
+                            try { sessionStorage.setItem('loggedIn', '1'); sessionStorage.setItem('currentUser', JSON.stringify(currentUser)); } catch(e) {}
+                            document.getElementById('authBtn').classList.add('hidden');
+                            document.getElementById('profileBtn').classList.remove('hidden');
+                            closeLoginModal(); closeSignupModal();
+                            goToHome();
+                        }
+                    } else {
+                        alert(data.message || 'Google sign-in failed');
+                    }
+                }
+            };
+            window.addEventListener('message', messageHandler);
+        }
+
+        // MSAL (Microsoft Authentication Library) client-side flow using popup
+        let msalInstance = null;
+        function initMsal() {
+            if (msalInstance) return;
+            const msalConfig = {
+                auth: {
+                    clientId: 'REPLACE_WITH_YOUR_MICROSOFT_CLIENT_ID', // TODO: replace
+                    redirectUri: window.location.origin + window.location.pathname
+                }
+            };
+            msalInstance = new msal.PublicClientApplication(msalConfig);
+        }
+
+        async function signInWithMicrosoft() {
+            try {
+                initMsal();
+                const loginRequest = {
+                    scopes: ['openid', 'profile', 'email']
+                };
+                const result = await msalInstance.loginPopup(loginRequest);
+                // result may contain idToken and idTokenClaims
+                const idToken = result && result.idToken ? result.idToken : (result && result.accessToken ? result.accessToken : null);
+                const idClaims = result && result.idTokenClaims ? result.idTokenClaims : null;
+
+                // For demo: send id_token (if present) to server for decoding/verification
+                if (!idToken && !idClaims) {
+                    alert('Microsoft sign-in did not return an ID token.');
+                    return;
+                }
+
+                // If we have raw id_token, send it; otherwise reconstruct minimal user from claims
+                if (idToken) {
+                    let data = null;
+                    try {
+                        const res = await fetch('php/microsoft-login.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id_token: idToken }),
+                            credentials: 'include'
+                        });
+                        if (!res.ok) {
+                            const txt = await res.text().catch(()=>'');
+                            throw new Error('Server verification failed: ' + (txt || res.status));
+                        }
+                        data = await res.json();
+                    } catch (networkErr) {
+                        console.error('Network/server error:', networkErr);
+                        alert('Microsoft sign-in failed: Server unreachable or CORS error. Make sure the PHP server is running and requests are same-origin.');
+                        return;
+                    }
+                    if (data && data.success) {
+                        currentUser = data.user;
+                    } else {
+                        alert(data.message || 'Microsoft sign-in failed');
+                        return;
+                    }
+                } else {
+                    // fallback: use claims
+                    currentUser = {
+                        name: idClaims.name || idClaims.preferred_username || 'Microsoft User',
+                        email: idClaims.email || idClaims.preferred_username || '',
+                        bio: 'Signed in with Microsoft'
+                    };
+                }
+
+                try { sessionStorage.setItem('loggedIn', '1'); sessionStorage.setItem('currentUser', JSON.stringify(currentUser)); } catch(e) {}
+                document.getElementById('authBtn').classList.add('hidden');
+                document.getElementById('profileBtn').classList.remove('hidden');
+                closeLoginModal(); closeSignupModal();
+                goToHome();
+            } catch (err) {
+                console.error('MS sign-in error', err);
+                alert('Microsoft sign-in failed: ' + (err.message || err));
+            }
+        }
+
+        // Helper to show the site interface / home area without reloading
+        function goToHome() {
+            try {
+                closeLoginModal();
+                closeSignupModal();
+            } catch (e) {}
+            document.getElementById('authBtn').classList.add('hidden');
+            document.getElementById('profileBtn').classList.remove('hidden');
+            const main = document.querySelector('main.content-rows');
+            if (main) main.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // On load: if user previously logged in, restore state; otherwise open login modal
+        window.addEventListener('load', () => {
+            const logged = sessionStorage.getItem('loggedIn') || localStorage.getItem('loggedIn');
+            if (logged) {
+                try {
+                    const stored = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser'));
+                    if (stored) {
+                        currentUser = stored;
+                        document.getElementById('authBtn').classList.add('hidden');
+                        document.getElementById('profileBtn').classList.remove('hidden');
+                    }
+                } catch (e) {
+                    // ignore parse errors
+                }
+            } else {
+                // open login on first visit
+                openLoginModal();
+            }
+        });
+    </script>
+</body>
+</html>
